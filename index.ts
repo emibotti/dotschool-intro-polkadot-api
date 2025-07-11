@@ -4,7 +4,7 @@ import {
   type PolkadotClient,
   type SS58String,
 } from 'polkadot-api';
-import { dot } from '@polkadot-api/descriptors';
+import { dot, people } from '@polkadot-api/descriptors';
 
 function makeClient(endpoint: string): PolkadotClient {
   console.log(`Connecting to endpoint: ${endpoint}`);
@@ -56,16 +56,55 @@ async function getBalance(
   return free + reserved;
 }
 
+// - Create a new `async` function called `getDisplayName`:
+//   - It accepts two parameters:
+//     - `peopleClient` which is of type `PolkadotClient`.
+//     - `address` which is of type `SS58String`.
+//   - It returns a `Promise<string | undefined>`.
+// - Write the logic of the `getDisplayName` function:
+//   - Call the `getTypedApi` method on the `peopleClient` variable.
+//     - The `getTypedApi` method should include the parameter `people`, which we imported above.
+//     - Assign the result to a new constant `peopleApi`.
+//   - Call `peopleApi.query.Identity.IdentityOf.getValue(address)`.
+//   - `await` the result, and assign it to a new constant `accountInfo`.
+//   - Extract the display name with: `accountInfo?.[0].info.display.value?.asText()`
+//     - Assign the result to a new constant `displayName`.
+//   - Return the `displayName` constant.
+async function getDisplayName(
+  peopleClient: PolkadotClient,
+  address: SS58String
+): Promise<string | undefined> {
+  const peopleApi = peopleClient.getTypedApi(people);
+  const accountInfo = await peopleApi.query.Identity.IdentityOf.getValue(
+    address
+  );
+  const displayName = accountInfo?.info.display.value?.toString();
+
+  return displayName;
+}
+
 async function main() {
-  const endpoint = 'wss://rpc.polkadot.io';
-  const client = makeClient(endpoint);
+  const polkadotClient = makeClient('wss://rpc.polkadot.io');
+  await printChainInfo(polkadotClient);
+
+  const peopleClient = makeClient('wss://polkadot-people-rpc.polkadot.io');
+  await printChainInfo(peopleClient);
 
   const address = 'example_address';
-  const balance = await getBalance(client, address);
+  const balance = await getBalance(polkadotClient, address);
 
-  console.log(`Address <${address}> total balance is: ${balance}`);
+  console.log(`Address <${address}> total balance in BigInt is: ${balance}`);
 
-  await printChainInfo(client);
+  try {
+    const displayName = await getDisplayName(peopleClient, address);
+
+    console.log(`Address <${address}> display name is: ${displayName}`);
+  } catch (error) {
+    console.error(
+      `Cannot get display name from address <${address}>.\n`,
+      error
+    );
+  }
 
   console.log(`Done!`);
   process.exit(0);
